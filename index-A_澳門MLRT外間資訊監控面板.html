@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>澳門MLRT外間資訊監控面板</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 保持您原本的 CSS 樣式完全不變 */
+        :root { --bg-color: #0d1117; --card-bg: #161b22; --text-color: #c9d1d9; --border-color: #30363d; --header-color: #58a6ff; --title-color: #f0f6fc; --marquee-bg: #1c232d; --secondary-text: #8b949e; }
+        [data-theme="light"] { --bg-color: #f6f8fa; --card-bg: #ffffff; --text-color: #24292f; --border-color: #d0d7de; --header-color: #0969da; --title-color: #1f2328; --marquee-bg: #ebf0f4; --secondary-text: #57606a; }
+        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background: var(--bg-color); color: var(--text-color); font-family: "PingFang HK", "Microsoft JhengHei", sans-serif; font-size: 18px; transition: background 0.3s, color 0.3s; }
+        body { display: flex; flex-direction: column; padding: 15px; box-sizing: border-box; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 5px 10px 15px 5px; flex-shrink: 0; }
+        h1 { margin: 0; font-size: 1.5rem; color: var(--header-color); letter-spacing: 1px; display: flex; align-items: center; gap: 10px; }
+        .controls { display: flex; align-items: center; gap: 10px; margin-left: 15px; }
+        .auto-input { background: var(--card-bg); color: var(--header-color); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 8px; width: 55px; text-align: center; font-size: 0.9rem; outline: none; }
+        .refresh-btn, .auto-btn, .theme-btn { background: var(--card-bg); color: var(--text-color); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; gap: 6px; transition: all 0.2s; }
+        .auto-btn.active { background: #238636; color: white; border-color: #2ea043; }
+        #actual-mini { display: flex; gap: 25px; background: rgba(88, 166, 255, 0.15); padding: 10px 25px; border-radius: 40px; border: 1px solid var(--header-color); font-family: "Consolas", monospace; font-size: 1.25rem; color: var(--title-color); font-weight: 600; }
+        .marquee-container { border: 1px solid var(--border-color); margin-bottom: 10px; height: 50px; overflow: hidden; display: flex; align-items: center; flex-shrink: 0; }
+        .marquee-label { color: #ffffff; padding: 0 15px; font-weight: bold; font-size: 1.1rem; z-index: 5; height: 100%; display: flex; align-items: center; min-width: 120px; }
+        .marquee-stage { flex-grow: 1; height: 100%; position: relative; background: var(--marquee-bg); }
+        .marquee-text { position: absolute; width: 100%; padding: 0 15px; font-size: 1.1rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 1; transform: translateY(0); line-height: 50px; }
+        .traffic-bar { border-left: 5px solid #f2c94c; } .traffic-bar .marquee-label { background: #f2c94c; color: #000; }
+        .news-bar { border-left: 5px solid #d73a49; } .news-bar .marquee-label { background: #d73a49; }
+        .grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 15px; flex-grow: 1; min-height: 0; }
+        .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 15px; display: flex; flex-direction: column; min-height: 0; transition: all 0.3s ease; }
+        .card-warning.alert-active { background: #ffffff !important; border: 4px solid #d73a49 !important; animation: pulse-border 2s infinite; }
+        .alert-active .card-header h2, .alert-active .card-header i, .alert-active .content { color: #d73a49 !important; font-weight: bold; }
+        @keyframes pulse-border { 0% { box-shadow: 0 0 0 0 rgba(215, 58, 73, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(215, 58, 73, 0); } 100% { box-shadow: 0 0 0 0 rgba(215, 58, 73, 0); } }
+        .card-forecast { border-top: 4px solid #79c0ff; } .card-warning { border-top: 4px solid #f2c94c; } .card-seven { border-top: 4px solid #7ee787; }
+        .card-header { display: flex; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
+        .card-header i { font-size: 1.3rem; margin-right: 10px; color: var(--header-color); }
+        .card-header h2 { font-size: 1.2rem; margin: 0; color: var(--title-color); }
+        .content { font-size: 1.1rem; line-height: 1.7; overflow-y: auto; white-space: pre-wrap; flex-grow: 1; padding-right: 8px; color: var(--text-color); }
+        .time { font-size: 0.85rem; color: var(--secondary-text); margin-top: 10px; text-align: right; flex-shrink: 0; }
+        .fa-spin-once { animation: spin 0.8s ease-in-out; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+		/* 手機版適配樣式 */
+		@media (max-width: 768px) {
+		    html, body {
+		        overflow-y: auto; /* 手機版允許上下捲動，避免內容被裁切 */
+		        height: auto;
+		    }
+
+		    header {
+		        flex-direction: column; /* 標題與溫度計分行顯示 */
+		        align-items: flex-start;
+		        gap: 15px;
+		    }
+
+		    #actual-mini {
+		        width: 100%;
+		        justify-content: space-around;
+		        padding: 10px 0;
+		        font-size: 1.1rem;
+		    }
+
+		    .grid {
+		        grid-template-columns: 1fr; /* 改為單欄顯示 */
+		        gap: 10px;
+		    }
+
+		    .card {
+		        min-height: 250px; /* 給予卡片最小高度 */
+		    }
+
+		    .marquee-label {
+		        min-width: 90px;
+		        font-size: 0.9rem;
+		        padding: 0 10px;
+		    }
+		}
+	</style>
+</head>
+<body>
+
+    <header>
+        <h1>
+            <span><i class="fa-solid fa-tower-broadcast"></i> 澳門MLRT外間資訊監控面板</span>
+            <div class="controls">
+                <button class="theme-btn" onclick="toggleTheme()" id="theme-btn"><i class="fa-solid fa-moon"></i></button>
+                <button class="refresh-btn" onclick="manualRefresh()"><i id="refresh-icon" class="fa-solid fa-arrows-rotate"></i> 刷新</button>
+                <input type="number" id="auto-seconds" class="auto-input" value="60" min="5">
+                <button id="auto-btn" class="auto-btn" onclick="toggleAuto()"><i class="fa-solid fa-clock"></i> 自動更新 (OFF)</button>
+            </div>
+        </h1>
+        <div id="actual-mini">--℃ / --% / --</div>
+    </header>
+
+    <div class="marquee-container traffic-bar">
+        <div class="marquee-label"><i class="fa-solid fa-car"></i> 交通消息</div>
+        <div class="marquee-stage"><div id="traffic-marquee" class="marquee-text">正在獲取最新五條交通訊息...</div></div>
+    </div>
+
+    <div class="marquee-container news-bar">
+        <div class="marquee-label"><i class="fa-solid fa-newspaper"></i> 澳廣視新聞</div>
+        <div class="marquee-stage"><div id="news-marquee" class="marquee-text">正在同步最新五條新聞...</div></div>
+    </div>
+
+    <div id="board" class="grid">
+        <div class="card card-forecast" id="forecast-box"></div>
+        <div class="card card-warning" id="warning-box"></div>
+        <div class="card card-seven" id="seven-box"></div>
+    </div>
+
+<script>
+    const feeds = [
+        { id: "actual", url: "https://rss.smg.gov.mo/c_ActualWeather_rss.xml" },
+        { id: "forecast", name: "天氣預測", url: "https://rss.smg.gov.mo/c_WForecast_rss.xml", icon: "fa-cloud-sun" },
+        { id: "warning", name: "天氣警告", url: "https://rss.smg.gov.mo/c_WSignal_rss.xml", icon: "fa-triangle-exclamation" },
+        { id: "seven", name: "七日預測", url: "https://rss.smg.gov.mo/c_WForecast7days_rss.xml", icon: "fa-calendar-week" },
+        { id: "traffic", url: "https://dis.dsat.gov.mo:8017/traffic/xml/pn_rss.htm?language=tc" },
+        { id: "news", url: "https://cdn2.tdm.com.mo/xml/rss/zh_news.xml" }
+    ];
+
+    const windMap = { "北": "N", "東北": "NE", "東": "E", "東南": "SE", "南": "S", "西南": "SW", "西": "W", "西北": "NW", "微風": "Light" };
+    let trafficDataList = [], newsDataList = [];
+    let autoTimer = null;
+
+    window.onload = () => {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        updateThemeIcon(savedTheme);
+        const initialHistory = JSON.parse(localStorage.getItem('weather_warning_history') || "[]");
+        renderWarningBox(document.getElementById('warning-box'), initialHistory, "待更新...");
+        load();
+    };
+
+    function toggleTheme() {
+        const current = document.documentElement.getAttribute('data-theme');
+        const target = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', target);
+        localStorage.setItem('theme', target);
+        updateThemeIcon(target);
+    }
+
+    function updateThemeIcon(theme) {
+        document.getElementById('theme-btn').innerHTML = theme === 'dark' ? '<i class="fa-solid fa-moon"></i>' : '<i class="fa-solid fa-sun"></i>';
+    }
+
+    async function manualRefresh() {
+        const icon = document.getElementById('refresh-icon');
+        icon.classList.add('fa-spin-once');
+        await load();
+        setTimeout(() => icon.classList.remove('fa-spin-once'), 800);
+    }
+
+    function toggleAuto() {
+        const btn = document.getElementById('auto-btn');
+        const secondsInput = document.getElementById('auto-seconds');
+        if (autoTimer) {
+            clearInterval(autoTimer); autoTimer = null;
+            btn.classList.remove('active'); btn.innerHTML = '<i class="fa-solid fa-clock"></i> 自動更新 (OFF)';
+            secondsInput.disabled = false;
+        } else {
+            const interval = parseInt(secondsInput.value) * 1000;
+            if (isNaN(interval) || interval < 5000) { alert("請設定至少 5 秒以上"); return; }
+            btn.classList.add('active'); btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 自動更新 (ON)';
+            secondsInput.disabled = true;
+            manualRefresh();
+            autoTimer = setInterval(manualRefresh, interval);
+        }
+    }
+
+	function renderWarningBox(box, history, displayTime) {
+	    if (!box) return;
+	    const hasWarning = history.length > 0;
+	    const historyHtml = hasWarning ? history.join('\n-----------------------\n') : "現時沒有天氣警告";
+	    box.innerHTML = `
+	        <div class="card-header" style="justify-content: space-between;">
+	            <div style="display: flex; align-items: center;">
+	                <i class="fa-solid fa-triangle-exclamation"></i>
+	                <h2>天氣警告</h2>
+	            </div>
+	            <i class="fa-solid fa-trash-can" onclick="clearWarningHistory()" style="cursor: pointer; color: var(--secondary-text); font-size: 0.9rem;"></i>
+	        </div>
+	        <div class="content">${historyHtml}</div>
+	        <div class="time">🕒 最後同步: ${displayTime}</div>
+	    `;
+	    if (hasWarning) box.classList.add("alert-active");
+	    else box.classList.remove("alert-active");
+	}
+    function clearWarningHistory() {
+        if (confirm("確定要清除所有存留的天氣警告紀錄嗎？")) {
+            localStorage.removeItem('weather_warning_history');
+            location.reload();
+        }
+    }
+
+    function parseActual(text) {
+        const clean = text.replace(/<[^>]*>/g, '').replace(/：/g, ':');
+        const getVal = (label) => {
+            const reg = new RegExp(`${label}:\\s*([^\\n\\s°%km/h度]+)`);
+            const match = clean.match(reg);
+            return match ? match[1].trim() : '--';
+        };
+        return `<span><i class="fa-solid fa-thermometer"></i> ${getVal('溫度')}℃</span><span><i class="fa-solid fa-droplet"></i> ${getVal('濕度')}%</span><span><i class="fa-solid fa-wind"></i> ${windMap[getVal('風向')] || getVal('風向')} ${getVal('風速')}km/h</span>`;
+    }
+
+    function processContent(id, text) {
+        let clean = text.replace(/<[^>]*>/g, '').trim();
+        clean = clean.replace(/(警告類型|最近更新時間|內容)\s*(：|:)?/g, "").trim();
+        if (id === "warning") {
+            let lines = clean.split('\n'), processedLines = [];
+            const filterRules = [
+                { keyword: "沒有熱帶氣旋信號", remove: ["熱帶氣旋"] }, { keyword: "沒有暴雨警告信號", remove: ["暴雨"] },
+                { keyword: "沒有季候風黑球警告", remove: ["強烈季候風"] }, { keyword: "沒有雷暴警告信號", remove: ["雷暴"] },
+                { keyword: "沒有風暴潮警告", remove: ["風暴潮"] }, { keyword: "沒有海嘯警告信號", remove: ["海嘯"] }
+            ];
+            for (let line of lines) {
+                let currentLine = line.trim(); if (!currentLine) continue;
+                const rule = filterRules.find(r => currentLine.includes(r.keyword));
+                if (rule) {
+                    let j = processedLines.length - 1;
+                    while (j >= 0) {
+                        if (rule.remove.some(word => processedLines[j].includes(word)) || /\d{4}-\d{2}-\d{2}/.test(processedLines[j])) { processedLines.pop(); j--; } else { break; }
+                    }
+                } else {
+                    if (/(暴雨|強烈季候風|雷暴|風暴潮|海嘯|熱帶氣旋)/.test(currentLine)) processedLines.push("\n" + currentLine);
+                    else processedLines.push(currentLine);
+                }
+            }
+            const result = processedLines.join('\n').trim();
+            return (result === "") ? "現時沒有天氣警告" : result;
+        }
+        return clean.replace(/(\d{4}-\d{2}-\d{2})/g, "\n\n$1\n").trim();
+    }
+
+	async function load() {
+	    const miniBox = document.getElementById('actual-mini');
+	    miniBox.style.opacity = "0.5";
+
+	    // 1. 統一時間處理函數 (強效正則解析)
+	    const format24h = (dateStr) => {
+	        if (!dateStr) return "--:--";
+
+	        // 檢查是否為 2026-04-14 21:00 這種格式
+	        const isoMatch = dateStr.match(/(\d{4}-\d{2}-\d{2})\s+(\d{1,2}):(\d{2})/);
+	        if (isoMatch) {
+	            const hour = isoMatch[2].padStart(2, '0');
+	            const minute = isoMatch[3].padStart(2, '0');
+	            return `${hour}:${minute}`;
+	        }
+
+	        // 檢查是否為 Wed, 08 Apr 2026 19:40:00 這種格式
+	        const rssMatch = dateStr.match(/(\d{1,2}):(\d{2})(?::\d{2})?/);
+	        if (rssMatch) {
+	            let hour = parseInt(rssMatch[1]);
+	            const minute = rssMatch[2].padStart(2, '0');
+	            const isPM = /PM/i.test(dateStr);
+	            const isAM = /AM/i.test(dateStr);
+	            if (isPM && hour < 12) hour += 12;
+	            else if (isAM && hour === 12) hour = 0;
+	            return `${hour.toString().padStart(2, '0')}:${minute}`;
+	        }
+	        return "--:--"; 
+	    };
+
+	    const myProxy = "https://macau-weather-proxy.gyjuht.workers.dev/"; 
+
+	    for (const f of feeds) {
+	        try {
+	            const target = `${myProxy}?url=${encodeURIComponent(f.url)}&nocache=${Date.now()}`;
+	            const res = await fetch(target);
+	            const xmlText = await res.text();
+	            const parser = new DOMParser();
+	            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+	            const items = Array.from(xmlDoc.querySelectorAll("item"));
+
+	            if (items.length > 0) {
+	                const firstItem = items[0];
+                
+	                // --- 強化版時間抓取邏輯 (解決七日預測抓不到 pubDate 的問題) ---
+	                let rawPubDate = "";
+	                const itemPubDate = firstItem.getElementsByTagName("pubDate")[0];
+	                if (itemPubDate && itemPubDate.textContent) {
+	                    rawPubDate = itemPubDate.textContent;
+	                } else {
+	                    // 如果 item 裡面沒時間，嘗試抓取頻道層級的更新時間
+	                    const channelPubDate = xmlDoc.getElementsByTagName("pubDate")[0] || 
+	                                           xmlDoc.getElementsByTagName("lastBuildDate")[0];
+	                    if (channelPubDate) rawPubDate = channelPubDate.textContent;
+	                }
+                
+	                const displayTime = format24h(rawPubDate);
+                
+	                // 控制台調試輸出
+	                console.log(`[${f.id}] 原始內容: "${rawPubDate}" | 轉換後: ${displayTime}`);
+
+	                if (f.id === "traffic" || f.id === "news") {
+	                    const sortedList = items.map(item => {
+	                        const pDate = item.querySelector("pubDate")?.textContent || "";
+	                        // 修正 ISO 格式相容性，將 2026-04-14 轉為 2026/04/14 確保 getTime() 正常
+	                        const safeDateStr = pDate.replace(/-/g, "/");
+	                        const ts = new Date(safeDateStr).getTime();
+	                        return {
+	                            title: item.querySelector("title")?.textContent || "",
+	                            date: format24h(pDate),
+	                            timestamp: isNaN(ts) ? 0 : ts
+	                        };
+	                    }).sort((a, b) => b.timestamp - a.timestamp).slice(0, 5);
+
+	                    if (f.id === "traffic") {
+	                        trafficDataList = sortedList;
+	                        document.getElementById('traffic-marquee').innerText = sortedList[0] ? `${sortedList[0].title} ${sortedList[0].date}` : "";
+	                    } else {
+	                        newsDataList = sortedList;
+	                        document.getElementById('news-marquee').innerText = sortedList[0] ? sortedList[0].title : "";
+	                    }
+	                } 
+	                else if (f.id === "actual") {
+	                    miniBox.innerHTML = parseActual(items[0].querySelector("description")?.textContent || "");
+	                } 
+	                else if (f.id === "warning") {
+	                    const desc = items[0].querySelector("description")?.textContent || "";
+	                    const content = processContent(f.id, desc);
+	                    let history = JSON.parse(localStorage.getItem('weather_warning_history') || "[]");
+	                    if (content !== "現時沒有天氣警告") {
+	                        const newEntry = `【${displayTime} 偵測】\n${content}`;
+	                        if (history.length === 0 || !history[0].includes(content.substring(0, 15))) {
+	                            history.unshift(newEntry);
+	                            if (history.length > 20) history.pop();
+	                            localStorage.setItem('weather_warning_history', JSON.stringify(history));
+	                        }
+	                    }
+	                    renderWarningBox(document.getElementById('warning-box'), history, displayTime); 
+	                } 
+	                else {
+	                    const box = document.getElementById(`${f.id}-box`);
+	                    if (box) {
+	                        box.innerHTML = `
+	                            <div class="card-header"><i class="fa-solid ${f.icon}"></i><h2>${f.name}</h2></div>
+	                            <div class="content">${processContent(f.id, items[0].querySelector("description")?.textContent || "")}</div>
+	                            <div class="time">🕒 更新時間: ${displayTime}</div>`;
+	                    }
+	                }
+	            }
+	        } catch (e) { console.error(`${f.id} Error:`, e); }
+	    }
+	    miniBox.style.opacity = "1";
+	}
+	
+    function rotateList(list, elementId, currentIndexObj) {
+        if (list.length === 0) return;
+        const el = document.getElementById(elementId);
+        el.style.transition = "transform 0.6s ease-in, opacity 0.4s";
+        el.style.transform = "translateY(-40px)"; el.style.opacity = "0";
+        setTimeout(() => {
+            currentIndexObj.index = (currentIndexObj.index + 1) % list.length;
+            const item = list[currentIndexObj.index];
+            el.innerText = elementId === 'news-marquee' ? item.title : `${item.title} ${item.date || ""}`;
+            el.style.transition = "none"; el.style.transform = "translateY(40px)";
+            setTimeout(() => { el.style.transition = "transform 0.6s ease-out, opacity 0.4s"; el.style.transform = "translateY(0px)"; el.style.opacity = "1"; }, 50);
+        }, 600);
+    }
+
+    const trafficCounter = { index: 0 }, newsCounter = { index: 0 };
+    setInterval(() => rotateList(trafficDataList, 'traffic-marquee', trafficCounter), 12000); 
+    setTimeout(() => { setInterval(() => rotateList(newsDataList, 'news-marquee', newsCounter), 12000); }, 6000);
+</script>
+</body>
+</html>
