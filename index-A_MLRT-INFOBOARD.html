@@ -37,41 +37,56 @@
         .time { font-size: 0.85rem; color: var(--secondary-text); margin-top: 10px; text-align: right; flex-shrink: 0; }
         .fa-spin-once { animation: spin 0.8s ease-in-out; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
-		/* 手機版適配樣式 */
-		@media (max-width: 768px) {
-		    html, body {
-		        overflow-y: auto; /* 手機版允許上下捲動，避免內容被裁切 */
-		        height: auto;
-		    }
+/* 手機版適配樣式 */
+        @media (max-width: 768px) {
+            html, body {
+                overflow-y: auto; /* 允許上下捲動 */
+                height: auto;
+            }
 
-		    header {
-		        flex-direction: column; /* 標題與溫度計分行顯示 */
-		        align-items: flex-start;
-		        gap: 15px;
-		    }
+            header {
+                flex-direction: column; /* 讓標題與按鈕區分行 */
+                align-items: center; /* 居中對齊 */
+                gap: 15px;
+            }
 
-		    #actual-mini {
-		        width: 100%;
-		        justify-content: space-around;
-		        padding: 10px 0;
-		        font-size: 1.1rem;
-		    }
+            /* 關鍵修正：讓按鈕區域可以自動換行 */
+            .controls {
+                display: flex;
+                flex-wrap: wrap; /* 內容過長時自動換行 */
+                justify-content: center; /* 居中排列 */
+                gap: 8px; /* 按鈕之間的間距 */
+                margin-left: 0; /* 移除左邊距 */
+                width: 100%;
+            }
 
-		    .grid {
-		        grid-template-columns: 1fr; /* 改為單欄顯示 */
-		        gap: 10px;
-		    }
+            /* 調整按鈕大小，讓它們在手機上更容易點擊 */
+            .refresh-btn, .auto-btn, .theme-btn {
+                flex: 1 1 auto; /* 讓按鈕自動分配寬度 */
+                justify-content: center;
+                padding: 10px 15px;
+                font-size: 1rem;
+            }
 
-		    .card {
-		        min-height: 250px; /* 給予卡片最小高度 */
-		    }
+            .auto-input {
+                width: 65px; /* 稍微加大輸入框，方便觸控 */
+                height: 38px;
+                font-size: 1rem;
+            }
 
-		    .marquee-label {
-		        min-width: 90px;
-		        font-size: 0.9rem;
-		        padding: 0 10px;
-		    }
-		}
+            #actual-mini {
+                width: 100%;
+                justify-content: space-around;
+                padding: 12px 0;
+                font-size: 1.1rem;
+                border-radius: 15px; /* 手機版圓角稍微調小一點較好看 */
+            }
+
+            .grid {
+                grid-template-columns: 1fr; /* 垂直單欄 */
+                gap: 15px;
+            }
+        }
 	</style>
 </head>
 <body>
