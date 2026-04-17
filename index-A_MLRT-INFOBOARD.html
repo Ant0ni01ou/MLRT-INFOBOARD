@@ -314,18 +314,24 @@ function processContent(id, text) {
                     else if (f.id === "actual") {
                         miniBox.innerHTML = parseActual(firstItem.querySelector("description")?.textContent || "");
                     } 
-                    else if (f.id === "warning") {
+                                        else if (f.id === "warning") {
                         const desc = firstItem.querySelector("description")?.textContent || "";
                         const content = processContent(f.id, desc);
                         let history = JSON.parse(localStorage.getItem('weather_warning_history') || "[]");
                         
-                        if (content && (history.length === 0 || !history[0].includes(content.substring(0, 15)))) {
+                        // 修正後的邏輯：
+                        // 1. 確保內容不是空的
+                        // 2. 移除「內容重複檢查」，只要 RSS 的更新時間 (displayTime) 與紀錄中最新的一條不同，就視為新更新
+                        const lastTime = history.length > 0 ? history[0].match(/【(\d{2}:\d{2}) 偵測】/)?.[1] : null;
+
+                        if (content && displayTime !== lastTime) {
                             history.unshift(`【${displayTime} 偵測】\n${content}`);
                             if (history.length > 15) history.pop();
                             localStorage.setItem('weather_warning_history', JSON.stringify(history));
                         }
                         renderWarningBox(document.getElementById('warning-box'), history, displayTime); 
                     } 
+
                     else {
                         const box = document.getElementById(`${f.id}-box`);
                         if (box) {
