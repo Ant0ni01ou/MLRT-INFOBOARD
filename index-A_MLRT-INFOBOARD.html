@@ -33,15 +33,45 @@
         .grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 15px; flex-grow: 1; min-height: 0; }
         .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 15px; display: flex; flex-direction: column; min-height: 0; transition: all 0.3s ease; }
         
-        .card-warning.alert-active { background: #ffffff !important; border: 4px solid #d73a49 !important; animation: pulse-border 2s infinite; }
-        .alert-active .card-header h2, .alert-active .card-header i, .alert-active .content { color: #d73a49 !important; font-weight: bold; }
+        /* 修正：警報生效時背景隨主題切換，僅保留紅框閃爍 */
+        .card-warning.alert-active { 
+            background: var(--card-bg) !important; 
+            border: 4px solid #d73a49 !important; 
+            animation: pulse-border 2s infinite; 
+        }
+
+        /* 警報生效時的文字顏色：黑暗模式使用較亮的紅色 */
+        .alert-active .card-header h2, 
+        .alert-active .card-header i, 
+        .alert-active .content { 
+            color: #ff6b6b !important; 
+            font-weight: bold; 
+        }
+
+        /* 淺色模式時調回深紅色 */
+        [data-theme="light"] .alert-active .card-header h2, 
+        [data-theme="light"] .alert-active .card-header i, 
+        [data-theme="light"] .alert-active .content { 
+            color: #d73a49 !important; 
+        }
+
         @keyframes pulse-border { 0% { box-shadow: 0 0 0 0 rgba(215, 58, 73, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(215, 58, 73, 0); } 100% { box-shadow: 0 0 0 0 rgba(215, 58, 73, 0); } }
         
         .card-forecast { border-top: 4px solid #79c0ff; } .card-warning { border-top: 4px solid #f2c94c; } .card-seven { border-top: 4px solid #7ee787; }
         .card-header { display: flex; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
         .card-header i { font-size: 1.3rem; margin-right: 10px; color: var(--header-color); }
         .card-header h2 { font-size: 1.2rem; margin: 0; color: var(--title-color); }
-        .content { font-size: 1.1rem; line-height: 1.7; overflow-y: auto; white-space: pre-wrap; flex-grow: 1; padding-right: 8px; color: var(--text-color); }
+        
+        /* 修正：確保內容過長時可滾動 */
+        .content { 
+            font-size: 1.1rem; 
+            line-height: 1.7; 
+            overflow-y: auto; 
+            white-space: pre-wrap; 
+            flex-grow: 1; 
+            padding-right: 8px; 
+            color: var(--text-color); 
+        }
         .time { font-size: 0.85rem; color: var(--secondary-text); margin-top: 10px; text-align: right; flex-shrink: 0; }
         
         .fa-spin-once { animation: spin 0.8s ease-in-out; }
@@ -55,7 +85,6 @@
             #actual-mini { width: 100%; justify-content: space-around; font-size: 1rem; padding: 12px 5px; border-radius: 15px; }
             .grid { grid-template-columns: 1fr; gap: 15px; }
             .card { min-height: 250px; }
-            .marquee-label { min-width: 90px; font-size: 0.9rem; padding: 0 10px; }
         }
     </style>
 </head>
@@ -189,13 +218,13 @@
     }
 
     function processContent(id, text) {
-        // 核心修改：移除 HTML 標籤後，立即強力移除「預測於」字串
+        // 1. 基本清理
         let clean = text.replace(/<[^>]*>/g, '').trim();
         
-        // 使用正則表達式徹底移除「預測於」及其可能出現的空格與冒號
+        // 修正：徹底移除「預測於」字串及其可能連結的符號
         clean = clean.replace(/\s*預測於\s*[:：]?\s*/g, '').trim();
         
-        // 移除其他 RSS 冗餘標頭
+        // 移除冗餘標頭
         clean = clean.replace(/(警告類型|最近更新時間|內容)\s*(：|:)?/g, "").trim();
 
         if (id === "warning") {
@@ -212,6 +241,7 @@
                 const isActive = actionWords.some(act => current.includes(act));
                 const isNegative = current.includes("沒有") || current.includes("取消") || current.includes("不生效");
 
+                // 核心邏輯：必須正向生效且不含否定詞
                 if (hasWarning && isActive && !isNegative) {
                     resultLines.push(current.replace(/\s+/g, ' '));
                 } else if (current.includes("預料") && !isNegative) {
@@ -274,7 +304,7 @@
                             const safeDateStr = pDate.replace(/-/g, "/");
                             const ts = new Date(safeDateStr).getTime();
                             return { title: item.querySelector("title")?.textContent || "", date: format24h(pDate), timestamp: isNaN(ts) ? 0 : ts };
-                        }).sort((a, b) => b.timestamp - a.timestamp).slice(0, 10); // 已放寬至 10 條
+                        }).sort((a, b) => b.timestamp - a.timestamp).slice(0, 10); // 修正：設為 10 條
 
                         if (f.id === "traffic") {
                             trafficDataList = sortedList;
