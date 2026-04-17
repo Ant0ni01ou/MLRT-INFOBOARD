@@ -235,8 +235,8 @@ function processContent(id, text) {
         // 監控的警告名稱
         const warningNames = ["雷暴", "熱帶氣旋", "暴雨", "強烈季候風", "風暴潮", "海嘯"];
         
-        // 動作關鍵字：明確加入「仍然生效」與「延長」
-        const actionWords = ["發出", "生效", "改掛", "仍然維持", "仍然生效", "現正", "延長"];
+        // 動作關鍵字：明確加入「仍然生效」與「延長」、「取消」
+        const actionWords = ["發出", "生效", "改掛", "仍然維持", "仍然生效", "現正", "取消", "延長"];
 
         for (let line of lines) {
             let current = line.trim();
@@ -247,7 +247,6 @@ function processContent(id, text) {
             
             // 排除關鍵字：只要有這些字，就算有上述關鍵字也不顯示
             const isNegative = current.includes("沒有") || 
-                               current.includes("取消") || 
                                current.includes("不生效") ||
                                current.includes("並非生效");
 
