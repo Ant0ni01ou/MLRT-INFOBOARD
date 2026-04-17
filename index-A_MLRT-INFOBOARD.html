@@ -217,52 +217,58 @@
         return `<span><i class="fa-solid fa-thermometer"></i> ${getVal('溫度')}℃</span><span><i class="fa-solid fa-droplet"></i> ${getVal('濕度')}%</span><span><i class="fa-solid fa-wind"></i> ${windMap[getVal('風向')] || getVal('風向')} ${getVal('風速')}km/h</span>`;
     }
 
-function processContent(id, text) {
-    // 1. 基本清理
-    let clean = text.replace(/<[^>]*>/g, '').trim();
+	function processContent(id, text) {
+	    // 1. 基本清理
+	    let clean = text.replace(/<[^>]*>/g, '').trim();
     
-    // 徹底移除「預測於」字串
-    clean = clean.replace(/\s*預測於\s*[:：]?\s*/g, '').trim();
+	    // 徹底移除「預測於」字串
+	    clean = clean.replace(/\s*預測於\s*[:：]?\s*/g, '').trim();
     
-    // 移除冗餘標頭
-    clean = clean.replace(/(警告類型|最近更新時間|內容)\s*(：|:)?/g, "").trim();
+	    // 移除冗餘標頭
+	    clean = clean.replace(/(警告類型|最近更新時間|內容)\s*(：|:)?/g, "").trim();
 
-    if (id === "warning") {
-        // 氣象局雷暴訊息常包含換行或長空格，使用正則切分
-        let lines = clean.split(/\n|\s{3,}/); 
-        let resultLines = [];
+	    if (id === "warning") {
+	        // 使用多個空格或換行切分句子，確保「雷暴」跟「仍然生效」在同一行被判斷
+	        let lines = clean.split(/\n|\s{3,}/); 
+	        let resultLines = [];
         
-        // 監控的警告名稱
-        const warningNames = ["雷暴", "熱帶氣旋", "暴雨", "強烈季候風", "風暴潮", "海嘯"];
+	        // 監控的警告名稱
+	        const warningNames = ["雷暴", "熱帶氣旋", "暴雨", "強烈季候風", "風暴潮", "海嘯"];
         
-        // 動作關鍵字：明確加入「仍然生效」與「延長」、「取消」
-        const actionWords = ["發出", "生效", "改掛", "仍然維持", "仍然生效", "現正", "取消", "延長"];
+	        // 動作關鍵字：包含所有「正向」與「狀態變更」詞彙
+	        const actionWords = ["發出", "生效", "改掛", "仍然維持", "仍然生效", "現正", "取消", "延長"];
 
-        for (let line of lines) {
-            let current = line.trim();
-            if (!current) continue;
+	        for (let line of lines) {
+	            let current = line.trim();
+	            if (!current) continue;
 
-            const hasWarning = warningNames.some(name => current.includes(name));
-            const isActive = actionWords.some(act => current.includes(act));
+	            const hasWarning = warningNames.some(name => current.includes(name));
+	            const isActive = actionWords.some(act => current.includes(act));
             
-            // 排除關鍵字：只要有這些字，就算有上述關鍵字也不顯示
-            const isNegative = current.includes("沒有") || 
-                               current.includes("不生效") ||
-                               current.includes("並非生效");
+	            // 排除邏輯：只針對「沒有」或「並非生效」進行排除
+	            // 注意：這裡移除了「取消」，因為您希望在白名單中顯示取消訊息
+	            const isNegative = current.includes("沒有") || 
+	                               current.includes("不生效") ||
+	                               current.includes("並非生效");
 
-            // 邏輯優化：只要包含警告名稱且有正面動作，且沒有否定詞，就顯示
-            if (hasWarning && isActive && !isNegative) {
-                // 將日期括號與描述之間的多餘換行壓縮，讓顯示更緊湊
-                resultLines.push(current.replace(/\s+/g, ' '));
-            } else if (current.includes("預料") && !isNegative) {
-                // 保留「預料雨勢...」等補充說明
-                resultLines.push(current);
-            }
-        }
+	            // 邏輯判斷
+	            if (hasWarning && isActive && !isNegative) {
+	                // 壓縮多餘空白並存入結果
+	                resultLines.push(current.replace(/\s+/g, ' '));
+	            } else if (current.includes("預料") && !isNegative) {
+	                // 保留補充說明
+	                resultLines.push(current);
+	            }
+	        }
 
-        if (resultLines.length === 0) return "現時沒有天氣警告";
-        return resultLines.join('\n\n').trim();
-    }
+	        if (resultLines.length === 0) return "現時沒有天氣警告";
+	        return resultLines.join('\n\n').trim();
+	    }
+    
+	    // 其他預測內容處理
+	    return clean.replace(/(\d{4}-\d{2}-\d{2})/g, "\n\n$1\n").trim();
+	}
+
     
     // 其他預測內容處理
     return clean.replace(/(\d{4}-\d{2}-\d{2})/g, "\n\n$1\n").trim();
